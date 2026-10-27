@@ -269,8 +269,10 @@ fn the_parts_of_a_song_are_heard() {
         "subject": {
             "id": "w1", "title": "Tide (short 2)", "kind": "short",
             "donors": [
-                {"id": "v1", "title": "Tide (video)", "kind": "video", "file": clip.to_string_lossy()},
-                {"id": "v2", "title": "Tide (audio)", "kind": "audio", "file": null}
+                {"id": "v1", "title": "Tide (video)", "kind": "video", "folder": dir.to_string_lossy(),
+                 "file": {"state": "found", "rule": "*.mp4", "relative": "clip.mp4", "path": clip.to_string_lossy()}},
+                {"id": "v2", "title": "Tide (audio)", "kind": "audio", "folder": null,
+                 "file": {"state": "noFolder"}}
             ],
             "shots": []
         }

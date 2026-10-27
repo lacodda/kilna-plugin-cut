@@ -78,9 +78,33 @@ pub struct Donor {
     pub id: String,
     #[serde(default)]
     pub title: String,
-    /// Its finished file, whole; `None` when it has none.
+    /// Its finished file, as kilna describes it: how it was found and, when
+    /// it was, its whole `path`.
     #[serde(default)]
-    pub file: Option<String>,
+    pub file: Option<FinishedFile>,
+}
+
+impl Donor {
+    /// The donor's finished file, whole, when it has one.
+    pub fn path(&self) -> Option<&str> {
+        match self.file.as_ref()? {
+            FinishedFile::Described { path } => path.as_deref(),
+            FinishedFile::Path(path) => Some(path),
+        }
+    }
+}
+
+/// A finished file as kilna hands it over: an object with `state`, `rule`,
+/// `relative` and `path` (kilna v0.101 and later) - or a bare path, which a
+/// person writing an invocation by hand may give instead.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum FinishedFile {
+    Path(String),
+    Described {
+        #[serde(default)]
+        path: Option<String>,
+    },
 }
 
 /// One stretch of a donor.
@@ -184,7 +208,14 @@ mod tests {
                      "source_id": "v1", "source_title": "Tide (video)",
                      "path": "D:/media/songs/Tide/clip/v1/video/v1.mp4", "file_state": "found"}
                 ],
-                "donors": [], "chain": [{"id": "v1", "title": "Tide (video)", "kind": "video"}],
+                "donors": [
+                    {"id": "v1", "title": "Tide (video)", "kind": "video", "folder": "D:/media/songs/Tide/clip",
+                     "file": {"state": "found", "rule": "v*/video/*.mp4", "relative": "v1/video/v1.mp4",
+                              "path": "D:/media/songs/Tide/clip/v1/video/v1.mp4"}},
+                    {"id": "a1", "title": "Tide (audio)", "kind": "audio", "folder": null,
+                     "file": {"state": "noFolder"}}
+                ],
+                "chain": [{"id": "v1", "title": "Tide (video)", "kind": "video"}],
                 "origin": {"id": "s1", "title": "Tide", "kind": "song"},
                 "cover": null
             }
@@ -194,5 +225,12 @@ mod tests {
         assert_eq!(invocation.subject.shots[0].seconds(), 8.5);
         assert_eq!(invocation.subject.origin.unwrap().title, "Tide");
         assert_eq!(invocation.subject.cover, None);
+        let donors = &invocation.subject.donors;
+        assert_eq!(
+            donors[0].path(),
+            Some("D:/media/songs/Tide/clip/v1/video/v1.mp4"),
+            "a donor's file is read as kilna describes it"
+        );
+        assert_eq!(donors[1].path(), None, "one with no file has none");
     }
 }

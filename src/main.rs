@@ -115,7 +115,7 @@ fn suggest(subject: &Subject, tools: &ffmpeg::Tools) -> Outcome {
     let heard: Vec<_> = subject
         .donors
         .iter()
-        .filter_map(|donor| donor.file.as_deref().map(|file| (donor, file)))
+        .filter_map(|donor| donor.path().map(|file| (donor, file)))
         .collect();
     if heard.is_empty() {
         return failed(
