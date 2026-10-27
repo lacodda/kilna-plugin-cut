@@ -185,3 +185,130 @@ fn a_short_is_cut_from_its_stretches() {
     assert!(!short.join("video").join("v3.mp4").exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A song of a quiet verse and a loud chorus, twice, is heard as parts that
+/// begin where the chords turn, and the chorus is offered first - nothing is
+/// cut.
+#[test]
+#[ignore]
+fn the_parts_of_a_song_are_heard() {
+    let dir = std::env::temp_dir().join(format!("kpc-parts-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    // A verse of one chord, quiet, and a chorus of another, loud: 25 s each,
+    // twice over, under a still picture.
+    let chord = |notes: [f64; 3], volume: f64, seconds: u32, name: &str| {
+        let path = dir.join(name);
+        let sines: Vec<String> = notes
+            .iter()
+            .map(|hz| format!("sine=frequency={hz}:duration={seconds}"))
+            .collect();
+        ffmpeg(&[
+            "-f",
+            "lavfi",
+            "-i",
+            &sines[0],
+            "-f",
+            "lavfi",
+            "-i",
+            &sines[1],
+            "-f",
+            "lavfi",
+            "-i",
+            &sines[2],
+            "-filter_complex",
+            &format!("amix=inputs=3,volume={volume}"),
+            path.to_str().unwrap(),
+        ]);
+        path
+    };
+    let verse = chord([261.6, 329.6, 392.0], 0.15, 25, "verse.wav");
+    let chorus = chord([349.2, 440.0, 523.3], 1.0, 25, "chorus.wav");
+    let list = dir.join("list.txt");
+    let line = |path: &Path| format!("file '{}'\n", path.to_string_lossy().replace('\\', "/"));
+    std::fs::write(
+        &list,
+        [&verse, &chorus, &verse, &chorus]
+            .iter()
+            .map(|path| line(path))
+            .collect::<String>(),
+    )
+    .unwrap();
+    let song = dir.join("song.wav");
+    ffmpeg(&[
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        list.to_str().unwrap(),
+        song.to_str().unwrap(),
+    ]);
+    let clip = dir.join("clip.mp4");
+    ffmpeg(&[
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=navy:size=320x180:rate=10:duration=100",
+        "-i",
+        song.to_str().unwrap(),
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-shortest",
+        clip.to_str().unwrap(),
+    ]);
+    let settings = dir.join("kilna-plugin-cut.json");
+    std::fs::write(&settings, "{}").unwrap();
+
+    let invocation = serde_json::json!({
+        "command": "suggest", "target": "cuts",
+        "subject": {
+            "id": "w1", "title": "Tide (short 2)", "kind": "short",
+            "donors": [
+                {"id": "v1", "title": "Tide (video)", "kind": "video", "file": clip.to_string_lossy()},
+                {"id": "v2", "title": "Tide (audio)", "kind": "audio", "file": null}
+            ],
+            "shots": []
+        }
+    });
+
+    let (outcome, stderr) = run(&invocation, &settings);
+
+    assert_eq!(outcome["error"], serde_json::Value::Null, "{outcome}");
+    let heard = outcome["suggestions"].as_array().unwrap();
+    assert_eq!(heard.len(), 1, "the donor with no file is passed over");
+    assert_eq!(heard[0]["source_id"], "v1");
+    let boundaries: Vec<f64> = heard[0]["boundaries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b.as_f64().unwrap())
+        .collect();
+    for turn in [25.0, 50.0, 75.0] {
+        assert!(
+            boundaries.iter().any(|b| (b - turn).abs() <= 1.5),
+            "a part begins at {turn}: {boundaries:?}"
+        );
+    }
+    let best = &heard[0]["stretches"][0];
+    let starts = best["starts_at"].as_f64().unwrap();
+    assert!(
+        [25.0, 75.0]
+            .iter()
+            .any(|chorus| (starts - chorus).abs() <= 1.5),
+        "the chorus is offered first: {best}"
+    );
+    assert!(
+        stderr.contains("\"progress\""),
+        "progress is told: {stderr}"
+    );
+    assert!(
+        outcome["message"].as_str().unwrap().contains("passed over"),
+        "{outcome}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

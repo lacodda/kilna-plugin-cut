@@ -30,9 +30,18 @@ pub fn manifest() -> Value {
             "description": "Cuts the stretches in order into a new file in the short's folder; the file before it stays.",
             "target": "cuts",
             "timeout": TIMEOUT_SECONDS
+        }, {
+            "key": "suggest",
+            "label": "Find the parts",
+            "description": "Listens to each video the short is cut from: where its parts begin, and the parts worth a short. Nothing is cut.",
+            "target": "cuts",
+            "timeout": LISTEN_SECONDS
         }]
     })
 }
+
+/// How long listening may take: a few videos of four minutes, heard twice.
+pub const LISTEN_SECONDS: u64 = 600;
 
 /// One invocation, as kilna writes it to stdin.
 #[derive(Debug, Deserialize)]
@@ -58,6 +67,20 @@ pub struct Subject {
     /// The picture it goes out under, whole, when it has one.
     #[serde(default)]
     pub cover: Option<String>,
+    /// The works its stretches come out of, each with its finished file.
+    #[serde(default)]
+    pub donors: Vec<Donor>,
+}
+
+/// A work a short is cut from.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Donor {
+    pub id: String,
+    #[serde(default)]
+    pub title: String,
+    /// Its finished file, whole; `None` when it has none.
+    #[serde(default)]
+    pub file: Option<String>,
 }
 
 /// One stretch of a donor.
@@ -93,6 +116,23 @@ pub struct Outcome {
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<String>,
+    /// What was heard in each donor, for kilna to draw on its track.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub suggestions: Vec<Suggestion>,
+}
+
+/// What was heard in one donor's finished file.
+#[derive(Debug, Clone, Serialize)]
+pub struct Suggestion {
+    /// The donor, as kilna named it.
+    pub source_id: String,
+    /// The file that was heard, whole: kilna keeps what was heard only for
+    /// as long as it is the donor's finished file.
+    pub file: String,
+    /// Seconds where its parts begin.
+    pub boundaries: Vec<f64>,
+    /// The parts worth a short, best first.
+    pub stretches: Vec<crate::parts::Part>,
 }
 
 /// Say how far along the cut is: one line of JSON on stderr, which kilna

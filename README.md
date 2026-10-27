@@ -6,7 +6,7 @@
 
 > Cuts a short out of the stretches [kilna](https://github.com/lacodda/kilna) keeps for it - a vertical video, the picture over its own blur, its titles above and below, its cover at the end - into the short's own folder.
 
-kilna marks where in a video a short is taken from and never opens the video itself. This plugin does the cutting: **Cut the short** on a short's Cuts tab, and a new `v{k}.mp4` lies in the short's folder, where kilna finds it as the short's finished file.
+kilna marks where in a video a short is taken from and never opens the video itself. This plugin does the listening and the cutting: **Find the parts** on a short's Cuts tab marks where the parts of each video it is cut from begin and offers the parts worth a short; **Cut the short** lays a new `v{k}.mp4` in the short's folder, where kilna finds it as the short's finished file.
 
 ## Install
 
@@ -37,6 +37,20 @@ Every stretch of the short is cut in the order kilna splices them and joined in 
 
 The cover is the one kilna hands over, or else the newest picture in the short's `covers` folder.
 
+## Finding the parts
+
+**Find the parts** listens to each video the short is cut from - those with a finished file - and cuts nothing. The song is heard as half-second frames, each with its loudness and the twelve notes that sound in it. A part begins where the notes turn: the frames before a moment alike among themselves and unlike the frames after it. Up to five parts of 18 to 45 seconds, each running from one beginning to another, are offered with a reason:
+
+| Reason | What was heard |
+| --- | --- |
+| `chorus` | Loud, and something like it sounds again elsewhere. |
+| `loudest` | The loudest of the parts offered. |
+| `repeats` | It comes back, though it is not loud. |
+| `lift` | It comes in louder at once after a quieter stretch. |
+| `part` | A part of its own. |
+
+A part that fades out is offered last. kilna draws the beginnings on the video's track - a dragged edge lands on them - and the parts beside it, and the person takes one or none.
+
 ## Settings
 
 `kilna-plugin-cut.json` beside the executable; every key is optional.
@@ -59,7 +73,7 @@ The cover is the one kilna hands over, or else the newest picture in the short's
 
 ## The protocol
 
-A kilna plugin is an executable run once per call: `--manifest` prints what it offers, `run` reads one invocation on stdin and prints one outcome on stdout. This one offers a single command on the Cuts tab with a thirty-minute allowance, writes progress as JSON lines on stderr - which kilna draws as a bar with a Stop button - and names the file it made. See [Writing a plugin](https://lacodda.github.io/kilna/guides/writing-a-plugin/).
+A kilna plugin is an executable run once per call: `--manifest` prints what it offers, `run` reads one invocation on stdin and prints one outcome on stdout. This one offers two commands on the Cuts tab - a cut with a thirty-minute allowance and the listening with ten minutes - writes progress as JSON lines on stderr, which kilna draws as a bar with a Stop button, and answers with the file it made or with `suggestions`: for each donor, the file heard, where its parts begin and the parts offered (kilna v0.103 and later). See [Writing a plugin](https://lacodda.github.io/kilna/guides/writing-a-plugin/).
 
 The pointing hand is rendered from [Noto Color Emoji](https://github.com/googlefonts/noto-emoji) (Apache License 2.0).
 
