@@ -149,14 +149,24 @@ pub fn progress(share: f64, message: &str) {
 mod tests {
     use super::*;
 
-    /// The manifest kilna reads: protocol 1, one command on the Cuts tab
-    /// with an allowance longer than the default two minutes.
+    /// The manifest kilna reads: protocol 1, a cut and a listening on the Cuts tab,
+    /// each with an allowance longer than the default two minutes.
     #[test]
-    fn the_manifest_offers_one_cutter_on_the_cuts_tab() {
+    fn the_manifest_offers_a_cutter_and_a_listener_on_the_cuts_tab() {
         let manifest = manifest();
         assert_eq!(manifest["protocol_version"], 1);
-        assert_eq!(manifest["commands"][0]["target"], "cuts");
-        assert!(manifest["commands"][0]["timeout"].as_u64().unwrap() > 120);
+        let commands = manifest["commands"].as_array().unwrap();
+        assert_eq!(
+            commands
+                .iter()
+                .map(|command| command["key"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["cut", "suggest"]
+        );
+        for command in commands {
+            assert_eq!(command["target"], "cuts");
+            assert!(command["timeout"].as_u64().unwrap() > 120);
+        }
     }
 
     /// An invocation as kilna v0.101 writes it reads, and the fields a cutter
