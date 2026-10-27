@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.1] - 2026-10-27
+
+### Bug Fixes
+- Read a donor's finished file as kilna describes it
+
 ## [0.2.0] - 2026-10-27
 
 ### Features

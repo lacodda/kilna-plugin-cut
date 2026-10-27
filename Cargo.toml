@@ -1,6 +1,6 @@
 [package]
 name = "kilna-plugin-cut"
-version = "0.2.0"
+version = "0.2.1"
 description = "Cuts a short out of the stretches kilna keeps for it: a vertical video with the picture over its own blur, its titles, and its cover at the end."
 authors = ["Kirill Lakhtachev <lahtachev@gmail.com>"]
 license = "MIT"
