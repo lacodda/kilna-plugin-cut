@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --check
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: cargo test
+      - name: Build
+        run: cargo build --release
+
+  # The cutter against a real ffmpeg: a clip made by ffmpeg itself is cut
+  # into a short, and the file is measured.
+  cut:
+    name: cut with ffmpeg
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install ffmpeg and a font
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Cut a short
+        run: cargo test -- --ignored
+
+  # rust-version is a promise to anyone building it. Read it from the
+  # manifest and hold it to it.
+  msrv:
+    name: msrv
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read rust-version from the manifest
+        id: msrv
+        run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Build on the declared MSRV
+        run: cargo check --all-targets
