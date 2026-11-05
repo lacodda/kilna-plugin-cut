@@ -49,15 +49,23 @@ fn main() -> ExitCode {
     }
 }
 
-/// Print the manifest - unless ffmpeg is missing, which is said on stderr so
-/// kilna lists the plugin with the reason.
+/// Print the manifest - unless ffmpeg is missing or the settings file does not
+/// read, each said on stderr so kilna lists the plugin with the reason.
 fn describe() -> ExitCode {
     if let Err(reason) = ffmpeg::find() {
         eprintln!("{reason}");
         return ExitCode::FAILURE;
     }
-    println!("{}", protocol::manifest());
-    ExitCode::SUCCESS
+    match settings::load(settings::path().as_deref()) {
+        Ok(now) => {
+            println!("{}", protocol::manifest(&now));
+            ExitCode::SUCCESS
+        }
+        Err(reason) => {
+            eprintln!("{reason}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 /// One call: read, cut, answer. A failure is answered as `error`, in words a
@@ -76,18 +84,23 @@ fn run() -> Outcome {
         Err(reason) => return failed(reason),
     };
     match invocation.command.as_str() {
-        "cut" => cut_short(&invocation.subject, &tools),
+        "cut" => cut_short(&invocation.subject, &invocation.settings, &tools),
         "suggest" => suggest(&invocation.subject, &tools),
         other => failed(format!("there is no command \"{other}\" here")),
     }
 }
 
 /// Cut the short into a new file in its folder.
-fn cut_short(subject: &Subject, tools: &ffmpeg::Tools) -> Outcome {
-    let settings = match settings::load(settings::path().as_deref()) {
-        Ok(settings) => settings,
-        Err(reason) => return failed(reason),
-    };
+fn cut_short(
+    subject: &Subject,
+    given: &serde_json::Map<String, serde_json::Value>,
+    tools: &ffmpeg::Tools,
+) -> Outcome {
+    let settings =
+        match settings::load(settings::path().as_deref()).and_then(|file| file.with(given)) {
+            Ok(settings) => settings,
+            Err(reason) => return failed(reason),
+        };
     match cut::cut(subject, &settings, tools) {
         Ok(file) => {
             let length = ffmpeg::length(tools, &file).ok();

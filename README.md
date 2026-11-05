@@ -22,7 +22,7 @@ macOS and Linux:
 curl -fsSL https://raw.githubusercontent.com/lacodda/kilna-plugin-cut/main/tools/install.sh | sh
 ```
 
-The installer puts the plugin in kilna's `plugins` folder and writes an example settings file beside it. It needs **ffmpeg** and **ffprobe** on the `PATH`; without them kilna lists the plugin with the reason instead of a button. `KILNA_PLUGIN_CUT_VERSION` pins a release, `KILNA_PLUGIN_CUT_DIR` another folder.
+The installer puts the plugin in kilna's `plugins` folder and writes an example settings file beside it; from kilna v0.108 the same settings stand in **Settings → Plugins**. It needs **ffmpeg** and **ffprobe** on the `PATH`; without them kilna lists the plugin with the reason instead of a button. `KILNA_PLUGIN_CUT_VERSION` pins a release, `KILNA_PLUGIN_CUT_DIR` another folder.
 
 ## What a cut looks like
 
@@ -53,7 +53,7 @@ A part that fades out is offered last. kilna draws the beginnings on the video's
 
 ## Settings
 
-`kilna-plugin-cut.json` beside the executable; every key is optional.
+In kilna: **Settings → Plugins**, where each is drawn with what a cut does now. What is set there is handed over with every run and lies on top of `kilna-plugin-cut.json` beside the executable, which sets the defaults the form starts from. Both are optional, and every key of the file too.
 
 | Key | Default | Meaning |
 | --- | --- | --- |

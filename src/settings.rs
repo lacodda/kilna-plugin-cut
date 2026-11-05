@@ -1,19 +1,22 @@
 //! What a cut looks like: the words on it, its colours, its fonts and where
-//! the file goes - read from `kilna-plugin-cut.json` beside the executable.
+//! the file goes.
 //!
-//! Nothing a channel says is written into the code: a channel renamed is a
-//! line changed in the file, not a new build. The file is optional; every
-//! key falls back to a default, and the defaults letter nothing in any one
-//! person's language.
+//! Nothing a channel says is written into the code. Three layers, each over
+//! the last: the defaults, which letter nothing in any one person's language;
+//! `kilna-plugin-cut.json` beside the executable, optional; and what was set in
+//! kilna's Settings, handed over with every run. The manifest offers the file's
+//! values as the defaults of its settings, so what the form in kilna shows is
+//! what a cut does.
 
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 /// The settings file's name, beside the executable.
 pub const FILE_NAME: &str = "kilna-plugin-cut.json";
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     /// The first line of the top bar - the channel's name. Empty draws none.
@@ -104,17 +107,52 @@ pub fn load(path: Option<&Path>) -> Result<Settings, String> {
         .map_err(|cause| format!("could not read {}: {cause}", path.display()))?;
     let settings: Settings = serde_json::from_str(&text)
         .map_err(|cause| format!("{} does not read: {cause}", path.display()))?;
-    if !(0.0..=1.0).contains(&settings.bar_shade) {
-        return Err(format!(
-            "{}: bar_shade is {}, and a shade runs from 0 to 1",
-            path.display(),
-            settings.bar_shade
-        ));
-    }
-    if settings.cover_seconds < 0.0 {
-        return Err(format!("{}: cover_seconds is below nought", path.display()));
-    }
+    settings
+        .check()
+        .map_err(|reason| format!("{}: {reason}", path.display()))?;
     Ok(settings)
+}
+
+impl Settings {
+    /// The values no type can hold to their bounds.
+    fn check(&self) -> Result<(), String> {
+        if !(0.0..=1.0).contains(&self.bar_shade) {
+            return Err(format!(
+                "bar_shade is {}, and a shade runs from 0 to 1",
+                self.bar_shade
+            ));
+        }
+        if self.cover_seconds < 0.0 {
+            return Err("cover_seconds is below nought".into());
+        }
+        Ok(())
+    }
+
+    /// These settings with what kilna handed over laid on top.
+    ///
+    /// kilna holds a value to what the manifest declares before it sends it, so
+    /// a value that does not read here is a kilna older or newer than this
+    /// plugin: said by name rather than cut around, for the reason a file that
+    /// does not read is. A number box can hold 18.5 for a setting that counts
+    /// whole steps, so `crf` is taken to the nearest.
+    pub fn with(self, given: &Map<String, Value>) -> Result<Self, String> {
+        let mut merged = match serde_json::to_value(&self) {
+            Ok(Value::Object(fields)) => fields,
+            _ => return Err("the settings could not be read back".into()),
+        };
+        for (key, value) in given {
+            merged.insert(key.clone(), value.clone());
+        }
+        if let Some(crf) = merged.get("crf").and_then(Value::as_f64) {
+            merged.insert("crf".into(), Value::from(crf.round().max(0.0) as u64));
+        }
+        let settings: Self = serde_json::from_value(Value::Object(merged))
+            .map_err(|cause| format!("the settings kilna handed over do not read: {cause}"))?;
+        settings
+            .check()
+            .map_err(|reason| format!("the settings kilna handed over: {reason}"))?;
+        Ok(settings)
+    }
 }
 
 #[cfg(test)]
@@ -154,5 +192,71 @@ mod tests {
             "a file that does not read is said"
         );
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn given(raw: Value) -> Map<String, Value> {
+        raw.as_object().unwrap().clone()
+    }
+
+    /// What was set in kilna wins over the file, and what it does not name
+    /// stays as the file or the defaults have it.
+    #[test]
+    fn what_kilna_hands_over_lies_on_top() {
+        let file = Settings {
+            channel: "Harbour Radio".into(),
+            call: "WHOLE SONG".into(),
+            ..Settings::default()
+        };
+
+        let settings = file
+            .with(&given(serde_json::json!({
+                "channel": "Tide Radio",
+                "hand": false,
+                "crf": 18,
+            })))
+            .unwrap();
+
+        assert_eq!(settings.channel, "Tide Radio");
+        assert!(!settings.hand);
+        assert_eq!(settings.crf, 18);
+        assert_eq!(settings.call, "WHOLE SONG", "from the file");
+        assert_eq!(settings.output, "video", "from the defaults");
+    }
+
+    /// A number box can hold what x264 cannot; the rest is said by name.
+    #[test]
+    fn what_kilna_hands_over_is_held_to_the_same_bounds() {
+        let round = Settings::default()
+            .with(&given(serde_json::json!({"crf": 18.6})))
+            .unwrap();
+        assert_eq!(round.crf, 19);
+
+        assert!(
+            Settings::default()
+                .with(&given(serde_json::json!({"bar_shade": 3})))
+                .unwrap_err()
+                .contains("bar_shade")
+        );
+        assert!(
+            Settings::default()
+                .with(&given(serde_json::json!({"cover_seconds": -1})))
+                .is_err()
+        );
+        assert!(
+            Settings::default()
+                .with(&given(serde_json::json!({"channel": 3})))
+                .unwrap_err()
+                .contains("do not read")
+        );
+    }
+
+    /// A key this version does not know is left alone: a newer kilna's, or an
+    /// older plugin's.
+    #[test]
+    fn a_key_this_plugin_does_not_know_is_no_reason_to_stop() {
+        let settings = Settings::default()
+            .with(&given(serde_json::json!({"from_the_future": 1})))
+            .unwrap();
+        assert_eq!(settings.crf, 20);
     }
 }

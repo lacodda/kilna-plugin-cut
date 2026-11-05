@@ -172,6 +172,30 @@ fn a_short_is_cut_from_its_stretches() {
         "nothing half-written is left"
     );
 
+    // What kilna hands over reaches the cut: a shade no bar can have is said by
+    // name, and nothing is cut.
+    let mut unfit = invocation.clone();
+    unfit["settings"] = serde_json::json!({ "bar_shade": 3 });
+    let (outcome, _) = run(&unfit, &settings);
+    assert!(
+        outcome["error"].as_str().unwrap().contains("bar_shade"),
+        "{outcome}"
+    );
+    assert!(!short.join("video").join("v3.mp4").exists());
+
+    // And one it can have is cut with: the file comes out the same way.
+    let mut given = invocation.clone();
+    given["settings"] = serde_json::json!({ "channel": "Tide Radio", "hand": false, "crf": 30 });
+    let (outcome, _) = run(&given, &settings);
+    assert!(outcome["error"].is_null(), "{outcome}");
+    let made = PathBuf::from(outcome["files"][0].as_str().unwrap());
+    assert!(
+        made.ends_with("v2.mp4") || made.ends_with("v3.mp4"),
+        "{made:?}"
+    );
+    assert_eq!(size(&made), (1080, 1920));
+    let _ = std::fs::remove_file(&made);
+
     // A stretch whose donor has no file is said, and nothing is cut.
     let mut broken = invocation.clone();
     broken["subject"]["shots"][1]["path"] = serde_json::Value::Null;
