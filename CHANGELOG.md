@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0] - 2026-11-05
+
+### Features
+- Declare what can be set, and read it from kilna
+
 ## [0.2.1] - 2026-10-27
 
 ### Bug Fixes
