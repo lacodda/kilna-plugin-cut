@@ -47,4 +47,4 @@ Write-Host "Installed kilna-plugin-cut $tag to $dir\kilna-plugin-cut.exe"
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
     Write-Host "Note: ffmpeg is not on your PATH; the plugin needs it (winget install Gyan.FFmpeg)."
 }
-Write-Host "In kilna, 'Cut the short' now stands on a short's Cuts tab."
+Write-Host "In kilna, 'Build the short' now stands on a short's Build tab."
