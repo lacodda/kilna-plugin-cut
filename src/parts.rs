@@ -15,9 +15,7 @@
 //! the track for edges to land on and offers the parts, each with its reason,
 //! and the person picks.
 
-use std::io::Read;
 use std::path::Path;
-use std::process::Stdio;
 
 use serde::Serialize;
 
@@ -78,44 +76,7 @@ pub struct Frames {
 
 /// The sound of a file as mono samples at [`RATE`], read through ffmpeg.
 pub fn decode(tools: &Tools, path: &Path) -> Result<Vec<f32>, String> {
-    let mut child = ffmpeg::command(&tools.ffmpeg)
-        .args(["-v", "error", "-nostdin", "-i"])
-        .arg(path)
-        .args([
-            "-vn",
-            "-ac",
-            "1",
-            "-ar",
-            &RATE.to_string(),
-            "-f",
-            "f32le",
-            "-",
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|cause| format!("could not start ffmpeg: {cause}"))?;
-    let mut bytes = Vec::new();
-    if let Some(mut out) = child.stdout.take() {
-        out.read_to_end(&mut bytes)
-            .map_err(|cause| format!("could not read the sound of {}: {cause}", path.display()))?;
-    }
-    let output = child
-        .wait_with_output()
-        .map_err(|cause| format!("ffmpeg did not finish: {cause}"))?;
-    if !output.status.success() {
-        let said = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "ffmpeg could not read the sound of {}: {}",
-            path.display(),
-            said.trim()
-        ));
-    }
-    Ok(bytes
-        .chunks_exact(4)
-        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-        .collect())
+    ffmpeg::sound(tools, path, RATE, None)
 }
 
 /// Hear samples at [`RATE`] as frames of [`FRAME`] seconds.

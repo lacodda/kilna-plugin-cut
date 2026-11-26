@@ -1,9 +1,9 @@
 //! The plugin as kilna runs it, against a real ffmpeg.
 //!
 //! Ignored by default: it needs ffmpeg on the PATH and a font, which CI's
-//! `cut` job installs. A clip and a cover are made by ffmpeg itself, the
-//! plugin is run with an invocation shaped as kilna v0.101 writes it, and
-//! the file it names is measured.
+//! `cut` job installs. A clip, a cover and the layers of a look are made by
+//! ffmpeg itself, the plugin is run with an invocation shaped as kilna v0.168
+//! writes it, and the file it names is measured.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -83,18 +83,35 @@ fn run(invocation: &serde_json::Value, settings: &Path) -> (serde_json::Value, S
     )
 }
 
-/// Two stretches of a clip and a cover become one vertical file in the
-/// short's folder, as long as the stretches and the cover, beside the cut
-/// before it - and the progress is told as it goes.
+/// A picture of one colour, as a layer kilna would have drawn.
+fn layer(dir: &Path, name: &str, colour: &str, size: &str) {
+    ffmpeg(&[
+        "-f",
+        "lavfi",
+        "-i",
+        &format!("color=c={colour}:size={size},format=rgba"),
+        "-frames:v",
+        "1",
+        dir.join(name).to_str().unwrap(),
+    ]);
+}
+
+/// Two stretches of a clip become one vertical file under a whole look - the
+/// ground with a blot, the header, the stamp, bars and a sign down the pipe,
+/// the words, the cover at the end - in the short's folder, as long as the
+/// stretches and the cover, beside the build before it; and the progress is
+/// told as it goes.
 #[test]
 #[ignore]
-fn a_short_is_cut_from_its_stretches() {
+fn a_short_is_built_from_its_stretches_under_its_look() {
     let dir = std::env::temp_dir().join(format!("kpc-it-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let short = dir.join("songs").join("Tide").join("shorts").join("v2");
+    let layers = dir.join("layers");
     std::fs::create_dir_all(short.join("covers")).unwrap();
     std::fs::create_dir_all(short.join("video")).unwrap();
-    std::fs::write(short.join("video").join("v1.mp4"), b"the cut before").unwrap();
+    std::fs::create_dir_all(&layers).unwrap();
+    std::fs::write(short.join("video").join("v1.mp4"), b"the build before").unwrap();
     let clip = dir.join("clip.mp4");
     ffmpeg(&[
         "-f",
@@ -114,21 +131,15 @@ fn a_short_is_cut_from_its_stretches() {
         "-shortest",
         clip.to_str().unwrap(),
     ]);
-    ffmpeg(&[
-        "-f",
-        "lavfi",
-        "-i",
-        "color=c=orange:size=1080x1920",
-        "-frames:v",
-        "1",
-        short.join("covers").join("v1.png").to_str().unwrap(),
-    ]);
+    layer(&short.join("covers"), "v1.png", "orange", "1080x1920");
+    layer(&layers, "ground.png", "0x121114", "1080x1920");
+    layer(&layers, "header.png", "black@0.0", "1080x1920");
+    layer(&layers, "blot-0.png", "red@0.3", "300x300");
+    layer(&layers, "stamp.png", "red", "400x120");
+    layer(&layers, "stamp-ghost.png", "yellow@0.7", "400x120");
+    layer(&layers, "sign.png", "white", "420x420");
     let settings: PathBuf = dir.join("kilna-plugin-cut.json");
-    std::fs::write(
-        &settings,
-        r#"{"channel": "Harbour Radio", "call": "WHOLE SONG: it's here"}"#,
-    )
-    .unwrap();
+    std::fs::write(&settings, "{}").unwrap();
 
     let invocation = serde_json::json!({
         "command": "cut", "target": "cuts",
@@ -144,7 +155,33 @@ fn a_short_is_cut_from_its_stretches() {
                  "file_state": "found"}
             ],
             "origin": {"id": "s1", "title": "Tide: a song", "kind": "song"},
-            "cover": null
+            "cover": null,
+            "short": {
+                "look": {
+                    "accent": "#FF2E63", "second": "#D3EC3F",
+                    "sign": {"on": true, "size": 310, "pulse": 0.24, "sway": 5},
+                    "ground": {"motion": true},
+                    "wave": {"on": true, "kind": "bars", "strip": true},
+                    "karaoke": {"on": true, "font": "DejaVu Sans", "size": 60},
+                    "effects": {"zoom": 0.1, "grain": 7, "vignette": true, "glitch": true},
+                    "tail": {"on": true, "seconds": 0.5}
+                },
+                "layers": {
+                    "dir": layers.to_string_lossy(), "ground": "ground.png", "header": "header.png",
+                    "blots": [{"file": "blot-0.png", "x": 40, "y": 60, "ax": 20, "ay": 20,
+                               "px": 8, "py": 11, "phase": 1, "kick": -40}],
+                    "stamp": {"file": "stamp.png", "ghost": "stamp-ghost.png", "x": 340, "y": 430},
+                    "sign": {"open": "sign.png"}
+                },
+                "karaoke": {
+                    "lines": [
+                        [{"word": "the", "at": 2.5, "end": 3.0}, {"word": "tide", "at": 3.0, "end": 4.0},
+                         {"word": "comes", "at": 4.0, "end": 4.5}, {"word": "in", "at": 4.5, "end": 5.0}],
+                        [{"word": "again", "at": 13.0, "end": 14.0}]
+                    ],
+                    "offset": 0
+                }
+            }
         }
     });
 
@@ -155,7 +192,7 @@ fn a_short_is_cut_from_its_stretches() {
     assert_eq!(
         file,
         short.join("video").join("v2.mp4"),
-        "beside the cut before"
+        "beside the build before"
     );
     assert_eq!(size(&file), (1080, 1920));
     let seconds = length(&file);
@@ -172,31 +209,54 @@ fn a_short_is_cut_from_its_stretches() {
         "nothing half-written is left"
     );
 
-    // What kilna hands over reaches the cut: a shade no bar can have is said by
-    // name, and nothing is cut.
+    // What kilna hands over reaches the build: a quality x264 has not got is
+    // said by name, and nothing is built.
     let mut unfit = invocation.clone();
-    unfit["settings"] = serde_json::json!({ "bar_shade": 3 });
+    unfit["settings"] = serde_json::json!({ "crf": 80 });
     let (outcome, _) = run(&unfit, &settings);
     assert!(
-        outcome["error"].as_str().unwrap().contains("bar_shade"),
+        outcome["error"].as_str().unwrap().contains("crf"),
         "{outcome}"
     );
     assert!(!short.join("video").join("v3.mp4").exists());
 
-    // And one it can have is cut with: the file comes out the same way.
-    let mut given = invocation.clone();
-    given["settings"] = serde_json::json!({ "channel": "Tide Radio", "hand": false, "crf": 30 });
-    let (outcome, _) = run(&given, &settings);
+    // A look with everything off still builds: the stretches over the ground.
+    let mut bare = invocation.clone();
+    bare["settings"] = serde_json::json!({ "crf": 30 });
+    bare["subject"]["short"]["look"] = serde_json::json!({});
+    bare["subject"]["short"]["layers"] =
+        serde_json::json!({ "dir": layers.to_string_lossy(), "ground": "ground.png" });
+    bare["subject"]["short"]["karaoke"] = serde_json::Value::Null;
+    let (outcome, _) = run(&bare, &settings);
     assert!(outcome["error"].is_null(), "{outcome}");
     let made = PathBuf::from(outcome["files"][0].as_str().unwrap());
-    assert!(
-        made.ends_with("v2.mp4") || made.ends_with("v3.mp4"),
-        "{made:?}"
-    );
+    assert!(made.ends_with("v3.mp4"), "{made:?}");
     assert_eq!(size(&made), (1080, 1920));
+    assert!(
+        (length(&made) - 6.5).abs() < 0.2,
+        "no cover where the look has no tail"
+    );
     let _ = std::fs::remove_file(&made);
 
-    // A stretch whose donor has no file is said, and nothing is cut.
+    // A layer that is not there is said, and nothing is built.
+    let mut torn = invocation.clone();
+    torn["subject"]["short"]["layers"]["stamp"]["file"] = "missing.png".into();
+    let (outcome, _) = run(&torn, &settings);
+    assert!(
+        outcome["error"].as_str().unwrap().contains("missing.png"),
+        "{outcome}"
+    );
+
+    // A kilna that hands over no look is told which kilna this needs.
+    let mut old = invocation.clone();
+    old["subject"]["short"] = serde_json::Value::Null;
+    let (outcome, _) = run(&old, &settings);
+    assert!(
+        outcome["error"].as_str().unwrap().contains("0.168"),
+        "{outcome}"
+    );
+
+    // A stretch whose donor has no file is said, and nothing is built.
     let mut broken = invocation.clone();
     broken["subject"]["shots"][1]["path"] = serde_json::Value::Null;
     let (outcome, _) = run(&broken, &settings);

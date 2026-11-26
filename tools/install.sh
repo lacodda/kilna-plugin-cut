@@ -51,12 +51,5 @@ DIR="${KILNA_PLUGIN_CUT_DIR:-$HOME_DIR/plugins}"
 mkdir -p "$DIR"
 install -m 755 "$BIN" "$DIR/kilna-plugin-cut"
 echo "Installed kilna-plugin-cut $TAG to $DIR/kilna-plugin-cut"
-
-# The settings stay as the person wrote them: an example only when there is none.
-if [ ! -f "$DIR/kilna-plugin-cut.json" ]; then
-    printf '{\n  "channel": "",\n  "call": "FULL VERSION",\n  "cover_seconds": 0.5\n}\n' > "$DIR/kilna-plugin-cut.json"
-    echo "Wrote $DIR/kilna-plugin-cut.json - put your channel's name in it."
-fi
-
 command -v ffmpeg >/dev/null 2>&1 || echo "Note: ffmpeg is not on your PATH; the plugin needs it."
 echo "In kilna, 'Cut the short' now stands on a short's Cuts tab."

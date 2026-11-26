@@ -44,22 +44,6 @@ try {
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 Write-Host "Installed kilna-plugin-cut $tag to $dir\kilna-plugin-cut.exe"
-
-# The settings stay as the person wrote them: an example is written only when
-# there is none, and never over one.
-$settings = Join-Path $dir "kilna-plugin-cut.json"
-if (-not (Test-Path $settings)) {
-    $example = @'
-{
-  "channel": "",
-  "call": "FULL VERSION",
-  "cover_seconds": 0.5
-}
-'@
-    [IO.File]::WriteAllText($settings, $example, (New-Object Text.UTF8Encoding $false))
-    Write-Host "Wrote $settings - put your channel's name in it."
-}
-
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
     Write-Host "Note: ffmpeg is not on your PATH; the plugin needs it (winget install Gyan.FFmpeg)."
 }

@@ -8,7 +8,7 @@
 //! two minutes, report progress on stderr and name the files it made. Since
 //! kilna v0.108 the manifest declares what can be set, kilna draws it in its
 //! Settings and hands the values over with every run, and a word can be given
-//! by language.
+//! by language. Since kilna v0.168 a short travels with its look.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -18,12 +18,12 @@ use crate::settings::Settings;
 /// The protocol this plugin speaks.
 pub const PROTOCOL_VERSION: u32 = 1;
 
-/// How long cutting may take: a short of a minute re-encoded twice, on a slow
-/// machine, with room to spare.
+/// How long a build may take: a short of a minute, every frame of it laid
+/// out, on a slow machine, with room to spare.
 pub const TIMEOUT_SECONDS: u64 = 1800;
 
-/// What can be set for a cut, as kilna draws it. Each default is what a cut does
-/// now, so what the form shows is the truth before anything was set.
+/// What can be set for a build, as kilna draws it. Each default is what a
+/// build does now, so what the form shows is the truth before anything was set.
 fn declared(now: &Settings) -> Value {
     let text = |key: &str, label: &str, ru: &str, about: &str, about_ru: &str, default: &str| {
         json!({
@@ -32,79 +32,11 @@ fn declared(now: &Settings) -> Value {
             "description": about, "descriptions": { "ru": about_ru },
         })
     };
-    let flag = |key: &str, label: &str, ru: &str, about: &str, about_ru: &str, default: bool| {
-        json!({
-            "key": key, "type": "boolean", "default": default,
-            "label": label, "labels": { "ru": ru },
-            "description": about, "descriptions": { "ru": about_ru },
-        })
-    };
     json!([
         text(
-            "channel",
-            "Channel",
-            "Канал",
-            "The first line of the top bar. Empty draws none.",
-            "Первая строка верхней плашки. Пусто - не рисуется.",
-            &now.channel,
-        ),
-        flag(
-            "title_upper",
-            "The title in capitals",
-            "Название прописными",
-            "Letters the song's title in capitals.",
-            "Пишет название песни прописными.",
-            now.title_upper,
-        ),
-        text(
-            "call",
-            "The call",
-            "Призыв",
-            "The words of the bottom bar. Empty draws none, and no hand.",
-            "Слова нижней плашки. Пусто - не рисуются, и руки нет.",
-            &now.call,
-        ),
-        flag(
-            "hand",
-            "The pointing hand",
-            "Указующая рука",
-            "Bobs under the call.",
-            "Покачивается под призывом.",
-            now.hand,
-        ),
-        text(
-            "ink",
-            "The colour of the words",
-            "Цвет слов",
-            "As ffmpeg reads a colour: white, #f2e6cf.",
-            "Как цвет читает ffmpeg: white, #f2e6cf.",
-            &now.ink,
-        ),
-        {
-            "key": "bar_shade", "type": "number", "min": 0.0, "max": 1.0, "step": 0.05,
-            "default": now.bar_shade,
-            "label": "The bars' shade", "labels": { "ru": "Тень плашек" },
-            "description": "How dark the bars over the blur are, from 0 to 1.",
-            "descriptions": { "ru": "Насколько темны плашки поверх размытия, от 0 до 1." },
-        },
-        {
-            "key": "cover_seconds", "type": "number", "min": 0.0, "step": 0.1,
-            "default": now.cover_seconds,
-            "label": "The cover, in seconds", "labels": { "ru": "Обложка, секунд" },
-            "description": "How long the cover stands at the end; 0 leaves it off.",
-            "descriptions": { "ru": "Сколько обложка стоит в конце; 0 - без неё." },
-        },
-        {
-            "key": "crf", "type": "number", "min": 0, "max": 51, "step": 1,
-            "default": now.crf,
-            "label": "Quality", "labels": { "ru": "Качество" },
-            "description": "x264's CRF: lower is better, and larger.",
-            "descriptions": { "ru": "CRF x264: меньше - лучше и тяжелее." },
-        },
-        text(
             "output",
-            "Where the cut goes",
-            "Куда кладётся нарезка",
+            "Where the short goes",
+            "Куда кладётся шортс",
             "A folder inside the short's folder.",
             "Папка внутри папки шортса.",
             &now.output,
@@ -117,22 +49,13 @@ fn declared(now: &Settings) -> Value {
             "Папка внутри папки шортса, на случай когда kilna её не передала.",
             &now.covers,
         ),
-        text(
-            "font",
-            "The channel's font",
-            "Шрифт канала",
-            "A whole path to a TrueType file.",
-            "Полный путь к файлу TrueType.",
-            &now.font,
-        ),
-        text(
-            "font_bold",
-            "The bold font",
-            "Жирный шрифт",
-            "For the title and the call: a whole path to a TrueType file.",
-            "Для названия и призыва: полный путь к файлу TrueType.",
-            &now.font_bold,
-        ),
+        {
+            "key": "crf", "type": "number", "min": 0, "max": 51, "step": 1,
+            "default": now.crf,
+            "label": "Quality", "labels": { "ru": "Качество" },
+            "description": "x264's CRF: lower is better, and larger.",
+            "descriptions": { "ru": "CRF x264: меньше - лучше и тяжелее." },
+        },
     ])
 }
 
@@ -143,17 +66,17 @@ pub fn manifest(now: &Settings) -> Value {
         "protocol_version": PROTOCOL_VERSION,
         "name": "cut",
         "version": env!("CARGO_PKG_VERSION"),
-        "description": "Cuts a short out of its stretches: a vertical 1080x1920 video with the picture over its own blur, the channel and the song above, a call below, and the cover at the end.",
+        "description": "Builds a short out of its stretches under the look of its channel: a vertical 1080x1920 video with the picture, the ground, the stamp, the sign that moves with the sound, the words lit as they are sung, and the cover at the end.",
         "descriptions": {
-            "ru": "Режет шортс из его отрезков: вертикальное видео 1080x1920, картинка поверх своего размытия, канал и песня сверху, призыв снизу и обложка в конце."
+            "ru": "Собирает шортс из его отрезков в оформлении канала: вертикальное видео 1080x1920 с картинкой, подложкой, печатью, знаком, который движется под звук, словами, загорающимися по мере пения, и обложкой в конце."
         },
         "commands": [{
             "key": "cut",
-            "label": "Cut the short",
-            "labels": { "ru": "Нарезать шортс" },
-            "description": "Cuts the stretches in order into a new file in the short's folder; the file before it stays.",
+            "label": "Build the short",
+            "labels": { "ru": "Собрать шортс" },
+            "description": "Splices the stretches in order under the short's look into a new file in its folder; the file before it stays.",
             "descriptions": {
-                "ru": "Режет отрезки по порядку в новый файл в папке шортса; прежний файл остаётся."
+                "ru": "Склеивает отрезки по порядку в оформлении шортса в новый файл в его папке; прежний файл остаётся."
             },
             "target": "cuts",
             "timeout": TIMEOUT_SECONDS
@@ -188,23 +111,22 @@ pub struct Invocation {
 /// The work a command runs on - only what a cutter reads of it.
 #[derive(Debug, Default, Deserialize)]
 pub struct Subject {
-    #[serde(default)]
-    pub title: String,
     /// The work's folder on disk, whole, when its kind names one.
     #[serde(default)]
     pub folder: Option<String>,
     /// The stretches it is spliced from, in order.
     #[serde(default)]
     pub shots: Vec<Shot>,
-    /// What it is all made from - the song, for a short.
-    #[serde(default)]
-    pub origin: Option<Named>,
     /// The picture it goes out under, whole, when it has one.
     #[serde(default)]
     pub cover: Option<String>,
     /// The works its stretches come out of, each with its finished file.
     #[serde(default)]
     pub donors: Vec<Donor>,
+    /// What the short looks like (kilna v0.168): the look, the still layers
+    /// kilna drew for it, and the words of the song with their times.
+    #[serde(default)]
+    pub short: Option<crate::short::Short>,
 }
 
 /// A work a short is cut from.
@@ -260,12 +182,6 @@ impl Shot {
     }
 }
 
-/// A work as the chain names it.
-#[derive(Debug, Clone, Deserialize)]
-pub struct Named {
-    pub title: String,
-}
-
 /// What the plugin prints when it is done.
 #[derive(Debug, Default, Serialize)]
 pub struct Outcome {
@@ -308,7 +224,7 @@ pub fn progress(share: f64, message: &str) {
 mod tests {
     use super::*;
 
-    /// The manifest kilna reads: protocol 1, a cut and a listening on the Cuts tab,
+    /// The manifest kilna reads: protocol 1, a build and a listening on the Cuts tab,
     /// each with an allowance longer than the default two minutes.
     #[test]
     fn the_manifest_offers_a_cutter_and_a_listener_on_the_cuts_tab() {
@@ -358,7 +274,6 @@ mod tests {
         let invocation: Invocation = serde_json::from_str(raw).unwrap();
         assert_eq!(invocation.command, "cut");
         assert_eq!(invocation.subject.shots[0].seconds(), 8.5);
-        assert_eq!(invocation.subject.origin.unwrap().title, "Tide");
         assert_eq!(invocation.subject.cover, None);
         let donors = &invocation.subject.donors;
         assert_eq!(
@@ -369,13 +284,13 @@ mod tests {
         assert_eq!(donors[1].path(), None, "one with no file has none");
     }
 
-    /// What a cut does now is what the form shows: the manifest's defaults are
-    /// the settings as they stand, the file's among them. Every setting a cut
-    /// reads is offered, and each says it in Russian too.
+    /// What a build does now is what the form shows: the manifest's defaults
+    /// are the settings as they stand, the file's among them. Every setting is
+    /// offered, and each says it in Russian too.
     #[test]
-    fn the_settings_are_declared_with_what_a_cut_does_now() {
+    fn the_settings_are_declared_with_what_a_build_does_now() {
         let now = Settings {
-            channel: "Harbour Radio".into(),
+            output: "cuts".into(),
             crf: 18,
             ..Settings::default()
         };
@@ -389,10 +304,9 @@ mod tests {
                 .unwrap_or_else(|| panic!("no setting {key}"))
         };
 
-        assert_eq!(of("channel")["default"], json!("Harbour Radio"));
+        assert_eq!(of("output")["default"], json!("cuts"));
         assert_eq!(of("crf")["default"], json!(18));
         assert_eq!(of("crf")["type"], json!("number"));
-        assert_eq!(of("hand")["type"], json!("boolean"));
 
         let fields = serde_json::to_value(&now).unwrap();
         for key in fields.as_object().unwrap().keys() {
@@ -402,6 +316,44 @@ mod tests {
             assert!(setting["descriptions"]["ru"].is_string(), "{key}");
         }
         assert_eq!(settings.len(), fields.as_object().unwrap().len());
+    }
+
+    /// A short's look reads as kilna v0.168 writes it, and what the plugin
+    /// does not move - the words of the header, the stamp's wear - is passed
+    /// over.
+    #[test]
+    fn a_look_from_kilna_reads() {
+        let raw = r##"{"command": "cut", "subject": {"short": {
+            "look": {
+                "accent": "#FF2E63", "second": "#D3EC3F",
+                "header": {"on": true, "call": "the whole song is on the channel"},
+                "sign": {"on": true, "art": "<svg/>", "size": 310, "pulse": 0.24, "sway": 5},
+                "ground": {"color": "#121114", "pattern": "blots", "motion": true},
+                "stamp": {"on": true, "angle": -6, "wear": 0.6},
+                "wave": {"on": true, "kind": "bars", "strip": true},
+                "karaoke": {"on": true, "font": "Arial", "size": 60},
+                "effects": {"zoom": 0.1, "grain": 7, "vignette": true, "glitch": true},
+                "tail": {"on": true, "seconds": 1.2}
+            },
+            "layers": {
+                "dir": "T:/layers", "ground": "ground.png", "header": "header.png",
+                "blots": [{"file": "blot-0.png", "x": -565, "y": -216, "ax": 23.2, "ay": 23.1,
+                           "px": 8.4, "py": 11.4, "phase": 5.1, "kick": -40.6}],
+                "stamp": {"file": "stamp.png", "ghost": "stamp-ghost.png", "x": 285, "y": 430},
+                "sign": {"open": "sign.png", "blink": "sign-blink.png"}
+            },
+            "karaoke": {"lines": [[{"word": "tide", "at": 12.5, "end": 13.0}]], "audio": null}
+        }}}"##;
+        let invocation: Invocation = serde_json::from_str(raw).unwrap();
+        let short = invocation.subject.short.unwrap();
+        assert_eq!(short.look.wave.kind, crate::short::WaveKind::Bars);
+        assert!(short.look.sign.on && short.look.ground.motion);
+        assert_eq!(short.layers.blots[0].kick, -40.6);
+        assert_eq!(
+            short.layers.sign.unwrap().blink.as_deref(),
+            Some("sign-blink.png")
+        );
+        assert_eq!(short.karaoke.unwrap().lines[0][0].word, "tide");
     }
 
     /// An invocation from a kilna older than the settings still reads.

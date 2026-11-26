@@ -1,7 +1,7 @@
 [package]
 name = "kilna-plugin-cut"
-version = "0.3.0"
-description = "Cuts a short out of the stretches kilna keeps for it: a vertical video with the picture over its own blur, its titles, and its cover at the end."
+version = "0.4.0"
+description = "Builds a short out of the stretches kilna keeps for it, under the look of its channel: the picture, the ground, the stamp, a sign that moves with the sound, the words lit as they are sung, and its cover at the end."
 authors = ["Kirill Lakhtachev <lahtachev@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/lacodda/kilna-plugin-cut"

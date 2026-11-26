@@ -1,18 +1,21 @@
-//! kilna-plugin-cut: cuts a short out of the stretches kilna keeps for it.
+//! kilna-plugin-cut: builds a short out of the stretches kilna keeps for it,
+//! under the look kilna keeps for its channel.
 //!
 //! A kilna plugin: an executable named `kilna-plugin-*`, run once per call.
 //! `--manifest` says what it offers; `run` reads the invocation from stdin
-//! and either cuts the short with ffmpeg into a new file in its folder or
+//! and either builds the short with ffmpeg into a new file in its folder or
 //! listens to the videos it is cut from for where their parts begin; it
 //! reports progress on stderr and answers on stdout. kilna itself never opens
 //! a video.
 
-mod cut;
 mod ffmpeg;
 mod fft;
+mod karaoke;
+mod listen;
 mod parts;
 mod protocol;
 mod settings;
+mod short;
 
 use std::io::Read;
 use std::process::ExitCode;
@@ -68,7 +71,7 @@ fn describe() -> ExitCode {
     }
 }
 
-/// One call: read, cut, answer. A failure is answered as `error`, in words a
+/// One call: read, build, answer. A failure is answered as `error`, in words a
 /// person can act on, rather than as a crash.
 fn run() -> Outcome {
     let mut input = String::new();
@@ -90,7 +93,7 @@ fn run() -> Outcome {
     }
 }
 
-/// Cut the short into a new file in its folder.
+/// Build the short into a new file in its folder.
 fn cut_short(
     subject: &Subject,
     given: &serde_json::Map<String, serde_json::Value>,
@@ -101,7 +104,7 @@ fn cut_short(
             Ok(settings) => settings,
             Err(reason) => return failed(reason),
         };
-    match cut::cut(subject, &settings, tools) {
+    match short::build(subject, &settings, tools) {
         Ok(file) => {
             let length = ffmpeg::length(tools, &file).ok();
             let name = file
@@ -110,8 +113,8 @@ fn cut_short(
                 .unwrap_or_default();
             Outcome {
                 message: Some(match length {
-                    Some(seconds) => format!("Cut {name}: {}", clock(seconds)),
-                    None => format!("Cut {name}"),
+                    Some(seconds) => format!("Built {name}: {}", clock(seconds)),
+                    None => format!("Built {name}"),
                 }),
                 files: vec![file.to_string_lossy().into_owned()],
                 ..Outcome::default()
